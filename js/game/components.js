@@ -29,26 +29,28 @@ define(['crafty'], function(Crafty) {
 				
 				//Blocks creation
 				for(var i = 0; i < Game.nbBlocks; i++)
-					this.newBlock(i,0, i);
+					this.newBlock({x: i, y: 0}, i);
 
 				//Center stage
-				this.align();
-
-				//Test
-				this.checkDraggables();
+				this.refresh();
 			},
 			
-			newBlock: function(x, y, id){
+			newBlock: function(pos, id){
 				var block = Crafty.e('Block').block(id);
-				this._state.content[x][y] = block;
+				this._state.content[pos.x][pos.y] = block;
 				this.attach(block);
-				if(x >= this._state.width)
+				if(pos.x >= this._state.width)
 					this._state.width ++;
-				if(y >= this._state.height)
+				if(pos.y >= this._state.height)
 					this._state.height ++;
-				block.at(x, y);
+				block.at(pos.x, pos.y);
 
 				return this;
+			},
+
+			refresh: function(){
+				this.align();
+				this.checkDraggables();
 			},
 
 			align: function(){
@@ -108,7 +110,6 @@ define(['crafty'], function(Crafty) {
 					if(isDraggable(this._children[i]))
 						this._children[i].addComponent('DraggableBlock');
 			}
-
 		});
 
 		//Blocks Logic
@@ -163,6 +164,7 @@ define(['crafty'], function(Crafty) {
 
 			onDragStart: function(event){
 				var pos = this.at();
+				this._parent._state.content[pos.x][pos.y] = undefined;
 				this._startingPos = this.at();
 			},
 
@@ -179,19 +181,23 @@ define(['crafty'], function(Crafty) {
 				if(this.isDroppable()){
 					var pos = this.at();
 					this.at(pos.x, pos.y);
+					this.place();
 				}
 				else{
 					this.at(this._startingPos.x, this._startingPos.y);
+					this._parent._state.content[this._startingPos.x][this._startingPos.y] = this;
 				}
 			},
 
 			isDroppable: function(){
 				var pos = this.at();
 
+				//Space not already taken
 				if(Crafty.math.withinRange(pos.x, 0, Game.nbBlocks - 1) && Crafty.math.withinRange(pos.y, 0, Game.nbBlocks - 1))
 					if(this._parent._state.content[pos.x][pos.y] !== undefined)
 						return false;
 
+				//
 				for(var x = -1; x <= 1; x++)
 					for(var y = -1; y <= 1; y++)
 						if((x === 0 || y === 0) && (x !== 0 || y !== 0))
@@ -203,13 +209,8 @@ define(['crafty'], function(Crafty) {
 				return false;
 			},
 
-
-		});
-
-		Crafty.c('Ghost', {
-			init: function(){
-				this.requires("Block, Tint")
-				.tint("rgb(255,2,255)", 0.5);
+			place: function(){
+				
 			}
 		});
 	};
