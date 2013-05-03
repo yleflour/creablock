@@ -6,15 +6,15 @@ define(['crafty'], function(Crafty) {
 			height: 400,
 			nbBlocks: 10,
 			blockWidth: 32,
-			blockHeight: 32,
-		}
+			blockHeight: 32
+		};
 
 		//Main logic
 		Crafty.c('Puzzle', {
 			_state : {
 				width: 0,
 				height: 0,
-				content: [],
+				content: []
 			},
 
 			init: function(){
@@ -49,18 +49,28 @@ define(['crafty'], function(Crafty) {
 			},
 
 			refresh: function(){
-				this.align();
+				this.centerGrid();
 				this.checkDraggables();
 			},
 
-			align: function(){
+			centerGrid: function(){
 				this.attr({
 					x: (Game.width - Game.blockWidth * this._state.width) / 2, 
-					y: (Game.height - Game.blockHeight * this._state.height) / 2, 
+					y: (Game.height - Game.blockHeight * this._state.height) / 2
 				});
 			},
 
 			save: function(){
+				for(var y = 0; y < Game.nbBlocks; y++){
+					var line = "";
+					for(var x = 0; x < Game.nbBlocks; x++){
+						if(this._state.content[x][y] === undefined)
+							line += "0";
+						else
+							line += "1";
+					}
+					console.log(line);
+				}
 			},
 
 			checkDraggables: function(){
@@ -91,7 +101,7 @@ define(['crafty'], function(Crafty) {
 										}
 									}
 								}
-					}
+					};
 
 					if(count._id === 0)
 						recursiveCheck(self._children[1]);
@@ -103,12 +113,130 @@ define(['crafty'], function(Crafty) {
 						return true;
 					else
 						return false;
-				}
+				};
 
 				//Testing purposes
 				for(var i = 0; i < Game.nbBlocks; i++)
 					if(isDraggable(this._children[i]))
 						this._children[i].addComponent('DraggableBlock');
+			},
+
+			shiftRemove: function(type){
+				switch(type){
+					case "left":
+						//Check empty column
+						var test = false;
+						for(var i = 0; i < Game.nbBlocks && !test; i++)
+							test = (this._state.content[0][i] !== undefined);
+						//Shift every column to the left
+						if(!test){
+							this._state.width --;
+							this.centerGrid();
+							for(var x = 0; x < Game.nbBlocks - 1; x++)
+								for(var y = 0; y < Game.nbBlocks; y++){
+									this._state.content[x][y] = this._state.content[x+1][y];
+									if(this._state.content[x][y] !== undefined)
+										this._state.content[x][y].at(x, y);
+								}
+							for(var y = 0; y < Game.nbBlocks; y++)
+								this._state.content[Game.nbBlocks - 1][y] = undefined;
+						}
+					break;
+					
+					case "up":
+						//Check empty line
+						var test = false;
+						for(var i = 0; i < Game.nbBlocks && !test; i++)
+							test = (this._state.content[i][0] !== undefined);
+						//Shift every line up
+						if(!test){
+							this._state.height --;
+							for(var y = 0; y < Game.nbBlocks - 1; y++)
+								for(var x = 0; x < Game.nbBlocks; x++){
+									this._state.content[x][y] = this._state.content[x][y+1];
+									if(this._state.content[x][y] !== undefined)
+										this._state.content[x][y].at(x, y);
+								}
+							for(var x = 0; x < Game.nbBlocks; x++)
+								this._state.content[x][Game.nbBlocks - 1] = undefined;
+							this.centerGrid();
+						}
+					break;
+
+					case "down":
+						//Increase height if necessary
+						if(this._state.height > 1){
+							var test = false;
+							for(var i = 0; i < Game.nbBlocks && !test; i++)
+								test = (this._state.content[i][this._state.height - 1] !== undefined);
+							if(!test){
+								this._state.height--;
+							}
+						}
+					break;
+
+					case "right":
+						//Increase width if necessary
+						if(this._state.width > 1){
+							var test = false;
+							for(var i = 0; i < Game.nbBlocks && !test; i++)
+								test = (this._state.content[this._state.width - 1][i] !== undefined);
+							if(!test){
+								this._state.width--;
+							}
+						}
+					break;
+
+					default:
+						this.shiftRemove("down");
+						this.shiftRemove("right");
+					break;
+				}
+                this.centerGrid();
+			},
+
+			shiftAdd: function(type){
+				switch(type){
+                    
+					case "left":
+						//Increase width and recenter
+						this._state.width ++;
+
+						//Shift every column to the right
+						for(var x = Game.nbBlocks - 1; x >= 1; x--)
+							for(var y = 0; y < Game.nbBlocks; y++){
+								this._state.content[x][y] = this._state.content[x-1][y];
+								if(this._state.content[x][y] !== undefined)
+									this._state.content[x][y].at(x, y);
+							}
+						for(var y = 0; y < Game.nbBlocks; y++)
+							this._state.content[0][y] = undefined;
+					break;
+
+					case "up":
+						//Increase height and recenter
+						this._state.height ++;
+
+						//Shift every line down
+						for(var y = Game.nbBlocks - 1; y >= 1; y--)
+							for(var x = 0; x < Game.nbBlocks; x++){
+								this._state.content[x][y] = this._state.content[x][y-1];
+								if(this._state.content[x][y] !== undefined)
+									this._state.content[x][y].at(x, y);
+							}
+						for(var x = 0; x < Game.nbBlocks; x++)
+							this._state.content[x][0] = undefined;
+					break;
+
+					case "right":
+						this._state.width ++;
+					break;
+
+					case "down":
+						this._state.height ++;
+					break;
+				}
+                this.centerGrid();
 			}
 		});
 
@@ -147,13 +275,11 @@ define(['crafty'], function(Crafty) {
 
 			onClick: function(event){
 				var pos = this.at();
-				console.log(pos.x + " " + pos.y);
 			}
 		});
 
 		Crafty.c('DraggableBlock', {
 			_startingPos : {x: 0, y:0},
-			_ghost : undefined,
 
 			init: function(){
 				this.requires("Draggable")
@@ -163,14 +289,21 @@ define(['crafty'], function(Crafty) {
 			},
 
 			onDragStart: function(event){
-				var pos = this.at();
+				var pos = this._startingPos = this.at();
+                console.log(this._startingPos);
 				this._parent._state.content[pos.x][pos.y] = undefined;
-				this._startingPos = this.at();
+				if(pos.x === 0){
+					this._parent.shiftRemove("left");
+                    this._startingPos.x--;
+                }
+				if(pos.y === 0){
+					this._parent.shiftRemove("up");
+                    this._startingPos.y--;
+                }
+				this._parent.shiftRemove();
 			},
 
 			onDrag: function(event){
-				this.isDroppable(this.isDroppable());
-				console.log(this.at());
 				if(this.isDroppable()){
 					var pos = this.at();
 					this.at(pos.x, pos.y);
@@ -178,15 +311,51 @@ define(['crafty'], function(Crafty) {
 			},
 
 			onDragEnd: function(event){
+				var pos = {};
+				
+				//If droppable
 				if(this.isDroppable()){
-					var pos = this.at();
-					this.at(pos.x, pos.y);
-					this.place();
-				}
+                    console.log("droppable");
+					pos = this.at();
+                }
+				//If not, replace
 				else{
-					this.at(this._startingPos.x, this._startingPos.y);
-					this._parent._state.content[this._startingPos.x][this._startingPos.y] = this;
+                    console.log("Not droppable");
+                    pos = {x: this._startingPos.x, y: this._startingPos.y};
+                }
+				//Shifts//
+				//If to the left edge
+				if(pos.x === -1){
+                    console.log("left");
+                    this._parent.shiftAdd("left");
+                    pos.x = 0;
 				}
+
+				//If to the top edge
+				if(pos.y === -1){
+                    console.log("up");
+                    this._parent.shiftAdd("up");
+                    pos.y = 0;
+				}
+
+				//If to the top edge
+				if(pos.x === this._parent._state.width){
+                    console.log("right");
+                    this._parent.shiftAdd("right");
+				}
+
+				//If to the top edge
+				if(pos.y === this._parent._state.height){
+                    console.log("down");
+                    this._parent.shiftAdd("down");
+				}
+
+				//Add element
+                console.log(pos);
+				this.at(pos.x, pos.y);
+				this._parent._state.content[pos.x][pos.y] = this;
+
+				this._parent.checkDraggables();
 			},
 
 			isDroppable: function(){
@@ -197,7 +366,7 @@ define(['crafty'], function(Crafty) {
 					if(this._parent._state.content[pos.x][pos.y] !== undefined)
 						return false;
 
-				//
+				//Next to piece
 				for(var x = -1; x <= 1; x++)
 					for(var y = -1; y <= 1; y++)
 						if((x === 0 || y === 0) && (x !== 0 || y !== 0))
