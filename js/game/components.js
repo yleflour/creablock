@@ -8,23 +8,24 @@ define(['crafty'], function(Crafty) {
 			blockWidth: 32,
 			blockHeight: 32
 		};
-
+        
+        State = {
+            width: 0,
+            height: 0,
+            content: []
+        };
+        
 		//Main logic
 		Crafty.c('Puzzle', {
-			_state : {
-				width: 0,
-				height: 0,
-				content: []
-			},
 
 			init: function(){
 				this.requires('2D, Canvas');
 
 				//State Initiation
 				for(var i = 0; i < Game.nbBlocks; i++){
-					this._state.content[i] = [];
+					State.content[i] = [];
 					for(var j = 0; j < Game.nbBlocks; j++)
-						this._state.content[i][j] = undefined;
+						State.content[i][j] = undefined;
 				}
 				
 				//Blocks creation
@@ -33,17 +34,18 @@ define(['crafty'], function(Crafty) {
 
 				//Center stage
 				this.refresh();
+                console.log("done");
 			},
 			
 			newBlock: function(pos, id){
-				var block = Crafty.e('Block').block(id);
-				this._state.content[pos.x][pos.y] = block;
+                var block = Crafty.e('Block').block(id);
+				State.content[pos.x][pos.y] = block;
 				this.attach(block);
-				if(pos.x >= this._state.width)
-					this._state.width ++;
-				if(pos.y >= this._state.height)
-					this._state.height ++;
-				block.at(pos.x, pos.y);
+				if(pos.x >= State.width)
+					State.width ++;
+				if(pos.y >= State.height)
+					State.height ++;
+				block.at(pos);
 
 				return this;
 			},
@@ -55,8 +57,8 @@ define(['crafty'], function(Crafty) {
 
 			centerGrid: function(){
 				this.attr({
-					x: (Game.width - Game.blockWidth * this._state.width) / 2, 
-					y: (Game.height - Game.blockHeight * this._state.height) / 2
+					x: (Game.width - Game.blockWidth * State.width) / 2, 
+					y: (Game.height - Game.blockHeight * State.height) / 2
 				});
 			},
 
@@ -64,7 +66,7 @@ define(['crafty'], function(Crafty) {
 				for(var y = 0; y < Game.nbBlocks; y++){
 					var line = "";
 					for(var x = 0; x < Game.nbBlocks; x++){
-						if(this._state.content[x][y] === undefined)
+						if(State.content[x][y] === undefined)
 							line += "0";
 						else
 							line += "1";
@@ -93,7 +95,7 @@ define(['crafty'], function(Crafty) {
 								if((x === 0 || y === 0) && (x !== 0 || y !== 0)) {
 									var pos = origin.at();
 									if(Crafty.math.withinRange(pos.x + x, 0, Game.nbBlocks) && Crafty.math.withinRange(pos.y + y, 0, Game.nbBlocks)){
-										var child = self._state.content[pos.x + x][pos.y + y];
+										var child = State.content[pos.x + x][pos.y + y];
 										if(child !== undefined && !included[child._id]) {
 											included[child._id] = true;
 											count ++;
@@ -116,9 +118,13 @@ define(['crafty'], function(Crafty) {
 				};
 
 				//Testing purposes
-				for(var i = 0; i < Game.nbBlocks; i++)
+				for(var i = 0; i < Game.nbBlocks; i++){
 					if(isDraggable(this._children[i]))
-						this._children[i].addComponent('DraggableBlock');
+						this._children[i].requires('DraggableBlock');
+                    else
+						this._children[i].removeComponent('DraggableBlock');
+                }
+                        
 			},
 
 			shiftRemove: function(type){
@@ -127,62 +133,68 @@ define(['crafty'], function(Crafty) {
 						//Check empty column
 						var test = false;
 						for(var i = 0; i < Game.nbBlocks && !test; i++)
-							test = (this._state.content[0][i] !== undefined);
+							test = (State.content[0][i] !== undefined);
 						//Shift every column to the left
 						if(!test){
-							this._state.width --;
+							State.width --;
 							this.centerGrid();
 							for(var x = 0; x < Game.nbBlocks - 1; x++)
 								for(var y = 0; y < Game.nbBlocks; y++){
-									this._state.content[x][y] = this._state.content[x+1][y];
-									if(this._state.content[x][y] !== undefined)
-										this._state.content[x][y].at(x, y);
+									State.content[x][y] = State.content[x+1][y];
+									if(State.content[x][y] !== undefined)
+										State.content[x][y].at({x:x, y:y});
 								}
 							for(var y = 0; y < Game.nbBlocks; y++)
-								this._state.content[Game.nbBlocks - 1][y] = undefined;
+								State.content[Game.nbBlocks - 1][y] = undefined;
+                            return true;
 						}
+                        return false;
 					break;
 					
 					case "up":
 						//Check empty line
 						var test = false;
 						for(var i = 0; i < Game.nbBlocks && !test; i++)
-							test = (this._state.content[i][0] !== undefined);
+							test = (State.content[i][0] !== undefined);
 						//Shift every line up
 						if(!test){
-							this._state.height --;
+							State.height --;
+                            this.centerGrid();
 							for(var y = 0; y < Game.nbBlocks - 1; y++)
 								for(var x = 0; x < Game.nbBlocks; x++){
-									this._state.content[x][y] = this._state.content[x][y+1];
-									if(this._state.content[x][y] !== undefined)
-										this._state.content[x][y].at(x, y);
+									State.content[x][y] = State.content[x][y+1];
+									if(State.content[x][y] !== undefined)
+										State.content[x][y].at({x:x, y:y});
 								}
 							for(var x = 0; x < Game.nbBlocks; x++)
-								this._state.content[x][Game.nbBlocks - 1] = undefined;
-							this.centerGrid();
+								State.content[x][Game.nbBlocks - 1] = undefined;
+                            return true;
 						}
+                        return false;
 					break;
 
 					case "down":
 						//Increase height if necessary
-						if(this._state.height > 1){
+						if(State.height > 1){
 							var test = false;
 							for(var i = 0; i < Game.nbBlocks && !test; i++)
-								test = (this._state.content[i][this._state.height - 1] !== undefined);
+								test = (State.content[i][State.height - 1] !== undefined);
 							if(!test){
-								this._state.height--;
+								State.height--;
+                                this.centerGrid();
 							}
 						}
 					break;
 
 					case "right":
 						//Increase width if necessary
-						if(this._state.width > 1){
+						if(State.width > 1){
 							var test = false;
 							for(var i = 0; i < Game.nbBlocks && !test; i++)
-								test = (this._state.content[this._state.width - 1][i] !== undefined);
+								test = (State.content[State.width - 1][i] !== undefined);
 							if(!test){
-								this._state.width--;
+								State.width--;
+                                this.centerGrid();
 							}
 						}
 					break;
@@ -192,7 +204,6 @@ define(['crafty'], function(Crafty) {
 						this.shiftRemove("right");
 					break;
 				}
-                this.centerGrid();
 			},
 
 			shiftAdd: function(type){
@@ -200,43 +211,46 @@ define(['crafty'], function(Crafty) {
                     
 					case "left":
 						//Increase width and recenter
-						this._state.width ++;
+						State.width ++;
+                        this.centerGrid();
 
 						//Shift every column to the right
 						for(var x = Game.nbBlocks - 1; x >= 1; x--)
 							for(var y = 0; y < Game.nbBlocks; y++){
-								this._state.content[x][y] = this._state.content[x-1][y];
-								if(this._state.content[x][y] !== undefined)
-									this._state.content[x][y].at(x, y);
+								State.content[x][y] = State.content[x-1][y];
+								if(State.content[x][y] !== undefined)
+									State.content[x][y].at({x:x, y:y});
 							}
 						for(var y = 0; y < Game.nbBlocks; y++)
-							this._state.content[0][y] = undefined;
+							State.content[0][y] = undefined;
 					break;
 
 					case "up":
 						//Increase height and recenter
-						this._state.height ++;
+						State.height ++;
+                        this.centerGrid();
 
 						//Shift every line down
 						for(var y = Game.nbBlocks - 1; y >= 1; y--)
 							for(var x = 0; x < Game.nbBlocks; x++){
-								this._state.content[x][y] = this._state.content[x][y-1];
-								if(this._state.content[x][y] !== undefined)
-									this._state.content[x][y].at(x, y);
+								State.content[x][y] = State.content[x][y-1];
+								if(State.content[x][y] !== undefined)
+									State.content[x][y].at({x:x, y:y});
 							}
 						for(var x = 0; x < Game.nbBlocks; x++)
-							this._state.content[x][0] = undefined;
+							State.content[x][0] = undefined;
 					break;
 
 					case "right":
-						this._state.width ++;
+						State.width ++;
+                        this.centerGrid();
 					break;
 
 					case "down":
-						this._state.height ++;
+						State.height ++;
+                        this.centerGrid();
 					break;
 				}
-                this.centerGrid();
 			}
 		});
 
@@ -256,8 +270,8 @@ define(['crafty'], function(Crafty) {
 				.bind('Click', this.onClick);
 			},
 
-			at: function(x, y){
-				if (x === undefined && y === undefined){
+			at: function(pos){
+				if (pos === undefined){
 					return {
 						x: Math.floor((this.x - this._parent.x + Game.blockHeight / 2) / Game.blockWidth),
 						y: Math.floor((this.y - this._parent.y + Game.blockHeight / 2) / Game.blockHeight)
@@ -265,8 +279,8 @@ define(['crafty'], function(Crafty) {
 				}
 				else {
 					this.attr({
-						x: (this._parent.x + x * Game.blockWidth),
-						y: (this._parent.y + y * Game.blockHeight)
+						x: (this._parent.x + pos.x * Game.blockWidth),
+						y: (this._parent.y + pos.y * Game.blockHeight)
 					});
 
 					return this;
@@ -279,81 +293,78 @@ define(['crafty'], function(Crafty) {
 		});
 
 		Crafty.c('DraggableBlock', {
-			_startingPos : {x: 0, y:0},
+			_initialPos : {},
 
 			init: function(){
 				this.requires("Draggable")
-				.bind('StartDrag', this.onDragStart)
-				.bind('Dragging', this.onDrag)
-				.bind('StopDrag', this.onDragEnd);
+				.bind('StartDrag', this.dragStart)
+				.bind('Dragging', this.drag)
+				.bind('StopDrag', this.dragEnd);
 			},
 
-			onDragStart: function(event){
-				var pos = this._startingPos = this.at();
-                console.log(this._startingPos);
-				this._parent._state.content[pos.x][pos.y] = undefined;
+			dragStart: function(event){
+                var pos = this._initialPos = this.at();
+                console.log(this._initialPos);
+				State.content[pos.x][pos.y] = undefined;
 				if(pos.x === 0){
-					this._parent.shiftRemove("left");
-                    this._startingPos.x--;
+					if(this._parent.shiftRemove("left"))
+                        this._initialPos.x--;
                 }
 				if(pos.y === 0){
-					this._parent.shiftRemove("up");
-                    this._startingPos.y--;
+					if(this._parent.shiftRemove("up"))
+                        this._initialPos.y--;
                 }
 				this._parent.shiftRemove();
 			},
 
-			onDrag: function(event){
+			drag: function(event){
+                //console.log(this.at());
 				if(this.isDroppable()){
-					var pos = this.at();
-					this.at(pos.x, pos.y);
+					this.at(this.at());
 				}
 			},
 
-			onDragEnd: function(event){
+			dragEnd: function(event){
 				var pos = {};
 				
 				//If droppable
 				if(this.isDroppable()){
-                    console.log("droppable");
+                    //console.log("droppable");
 					pos = this.at();
                 }
 				//If not, replace
 				else{
-                    console.log("Not droppable");
-                    pos = {x: this._startingPos.x, y: this._startingPos.y};
+                    //console.log("Not droppable");
+                    console.log(this._initialPos);
+                    pos = this._initialPos;
                 }
+                
 				//Shifts//
 				//If to the left edge
 				if(pos.x === -1){
-                    console.log("left");
                     this._parent.shiftAdd("left");
                     pos.x = 0;
 				}
 
 				//If to the top edge
 				if(pos.y === -1){
-                    console.log("up");
                     this._parent.shiftAdd("up");
                     pos.y = 0;
 				}
 
 				//If to the top edge
-				if(pos.x === this._parent._state.width){
-                    console.log("right");
+				if(pos.x === State.width){
                     this._parent.shiftAdd("right");
 				}
 
 				//If to the top edge
-				if(pos.y === this._parent._state.height){
-                    console.log("down");
+				if(pos.y === State.height){
                     this._parent.shiftAdd("down");
 				}
 
 				//Add element
-                console.log(pos);
-				this.at(pos.x, pos.y);
-				this._parent._state.content[pos.x][pos.y] = this;
+				this.at(pos);
+				State.content[pos.x][pos.y] = this;
 
 				this._parent.checkDraggables();
 			},
@@ -363,8 +374,10 @@ define(['crafty'], function(Crafty) {
 
 				//Space not already taken
 				if(Crafty.math.withinRange(pos.x, 0, Game.nbBlocks - 1) && Crafty.math.withinRange(pos.y, 0, Game.nbBlocks - 1))
-					if(this._parent._state.content[pos.x][pos.y] !== undefined)
+					if(State.content[pos.x][pos.y] !== undefined){
+                        //console.log("Taken");
 						return false;
+                    }
 
 				//Next to piece
 				for(var x = -1; x <= 1; x++)
@@ -372,9 +385,11 @@ define(['crafty'], function(Crafty) {
 						if((x === 0 || y === 0) && (x !== 0 || y !== 0))
 							if( Crafty.math.withinRange(pos.x + x, 0, Game.nbBlocks - 1) 
 						   		&& Crafty.math.withinRange(pos.y + y, 0, Game.nbBlocks - 1)
-								&& this._parent._state.content[pos.x + x][pos.y + y] !== undefined)
+								&& State.content[pos.x + x][pos.y + y] !== undefined){
+                                    //console.log("Found neighbour");
 									return true;
-
+                                }
+                //console.log("Nada");
 				return false;
 			},
 
